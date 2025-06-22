@@ -24,7 +24,7 @@ An [Obsidian](https://obsidian.md/) plugin that allows you to paste copied files
 
 ### Manual Installation
 
-1. Download the latest release from [GitHub Releases](https://github.com/ZeroMB/paste-file-to-property/releases)
+1. Download the latest release from [GitHub Releases](https://github.com/ZeroMB/Obsidian-Paste-File-to-Property/releases)
 2. Extract the files to your vault's `.obsidian/plugins/paste-file-to-property/` folder
 3. Reload Obsidian and enable the plugin in Settings > Community Plugins
 
@@ -92,7 +92,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-If you encounter any issues or have feature requests, please [open an issue](https://github.com/ZeroMB/paste-file-to-property/issues) on GitHub.
+If you encounter any issues or have feature requests, please [open an issue](https://github.com/ZeroMB/Obsidian-Paste-File-to-Property/issues) on GitHub.
 
 ## License
 
