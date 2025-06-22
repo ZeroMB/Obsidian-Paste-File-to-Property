@@ -2,6 +2,8 @@
 
 An [Obsidian](https://obsidian.md/) plugin that allows you to paste copied files directly into frontmatter properties, automatically converting them to the proper link format.
 
+![Preview](https://github.com/user-attachments/assets/bd894cf8-7ffb-4a03-be7e-b81a85546f5e)
+
 ## Features
 
 - 🎯 **Direct Property Pasting**: Paste files directly into property fields in editing mode
