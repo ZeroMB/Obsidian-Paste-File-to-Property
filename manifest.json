@@ -1,7 +1,7 @@
 {
 	"id": "paste-file-to-property",
 	"name": "Paste File to Property",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "Paste a copied file directly into frontmatter properties.",
 	"author": "Zer0",
