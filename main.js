@@ -72,15 +72,20 @@ var AutoFrontmatterConverterPlugin = class extends import_obsidian.Plugin {
   async handleFilePasteInProperty(evt, target) {
     if (!evt.clipboardData)
       return;
-    if (evt.clipboardData.types[0] !== "Files")
-      return;
     const items = evt.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.kind === "file") {
+      if (item.kind === "file" && evt.clipboardData.types[0] === "Files") {
         const file = item.getAsFile();
         if (file) {
           await this.saveFileAndWriteLink(file, target);
+          evt.preventDefault();
+          break;
+        }
+      } else if (item.kind === "file" && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          await this.saveImageAndWriteLink(file, target);
           evt.preventDefault();
           break;
         }
@@ -90,7 +95,7 @@ var AutoFrontmatterConverterPlugin = class extends import_obsidian.Plugin {
   async saveFileAndWriteLink(file, target) {
     var _a, _b;
     const arrayBuffer = await file.arrayBuffer();
-    const fileName = file.name || `Pasted file ${Date.now()}`;
+    const fileName = file.name;
     const activeFile = this.app.workspace.getActiveFile();
     if (!activeFile) {
       new import_obsidian.Notice(`No active file!`);
@@ -98,7 +103,33 @@ var AutoFrontmatterConverterPlugin = class extends import_obsidian.Plugin {
     }
     const savePath = await this.app.fileManager.getAvailablePathForAttachment(fileName, activeFile.path);
     const activeEl = document.activeElement;
-    const propertyName = (_b = (_a = activeEl.parentNode) == null ? void 0 : _a.parentNode) == null ? void 0 : _b.children[0].children[1].getAttribute("aria-label");
+    const propertyElement = (_b = (_a = activeEl.parentNode) == null ? void 0 : _a.parentNode) == null ? void 0 : _b.querySelector("[aria-label]");
+    const propertyName = propertyElement == null ? void 0 : propertyElement.getAttribute("aria-label");
+    const newFile = await this.app.vault.createBinary(savePath, arrayBuffer);
+    let displayName;
+    const fileNameOnly = savePath.split("/").pop() || fileName;
+    if (this.settings.includeFileExtension) {
+      displayName = fileNameOnly;
+    } else {
+      displayName = fileNameOnly.replace(/\.[^/.]+$/, "");
+    }
+    const linkText = `[[${savePath}|${displayName}]]`;
+    await this.writeLinkIntoFrontmatter(activeFile, linkText, activeEl, propertyName, newFile);
+  }
+  async saveImageAndWriteLink(file, target) {
+    var _a, _b;
+    const arrayBuffer = await file.arrayBuffer();
+    const fileExtension = file.type.split("/")[1] || "png";
+    const fileName = `Pasted image ${Date.now()}.${fileExtension}`;
+    const activeFile = this.app.workspace.getActiveFile();
+    if (!activeFile) {
+      new import_obsidian.Notice(`No active file!`);
+      return;
+    }
+    const savePath = await this.app.fileManager.getAvailablePathForAttachment(fileName, activeFile.path);
+    const activeEl = document.activeElement;
+    const propertyElement = (_b = (_a = activeEl.parentNode) == null ? void 0 : _a.parentNode) == null ? void 0 : _b.querySelector("[aria-label]");
+    const propertyName = propertyElement == null ? void 0 : propertyElement.getAttribute("aria-label");
     const newFile = await this.app.vault.createBinary(savePath, arrayBuffer);
     let displayName;
     const fileNameOnly = savePath.split("/").pop() || fileName;
@@ -121,7 +152,7 @@ var AutoFrontmatterConverterPlugin = class extends import_obsidian.Plugin {
         frontmatter[propertyName] = filePath;
       });
     } catch (error) {
-      await this.app.vault.delete(newFile);
+      await this.app.fileManager.trashFile(newFile);
       new import_obsidian.Notice(`Failed to update frontmatter!
 ${error}`);
       console.error("Error updating frontmatter:", error);

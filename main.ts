@@ -67,16 +67,24 @@ export default class AutoFrontmatterConverterPlugin extends Plugin {
 	async handleFilePasteInProperty(evt: ClipboardEvent, target: HTMLElement) {
 		if (!evt.clipboardData) return;
 
-		if (evt.clipboardData.types[0] !== 'Files') return;
-
 		const items: DataTransferItemList = evt.clipboardData.items;
 		for (let i = 0; i < items.length; i++) {
 			const item = items[i];
 
-			if (item.kind === "file") {
+			// Handle direct file paste
+			if (item.kind === "file" && evt.clipboardData.types[0] === 'Files') {
 				const file = item.getAsFile();
 				if (file) {
 					await this.saveFileAndWriteLink(file, target);
+					evt.preventDefault();
+					break;
+				}
+			}
+			// Handle copied images from web (image data in clipboard)
+			else if (item.kind === "file" && item.type.startsWith("image/")) {
+				const file = item.getAsFile();
+				if (file) {
+					await this.saveImageAndWriteLink(file, target);
 					evt.preventDefault();
 					break;
 				}
@@ -86,7 +94,7 @@ export default class AutoFrontmatterConverterPlugin extends Plugin {
 
 	async saveFileAndWriteLink(file: File, target: HTMLElement) {
 		const arrayBuffer = await file.arrayBuffer();
-		const fileName = file.name || `Pasted file ${Date.now()}`;
+		const fileName = file.name;
 
 		const activeFile = this.app.workspace.getActiveFile();
 		if (!activeFile) {
@@ -98,7 +106,42 @@ export default class AutoFrontmatterConverterPlugin extends Plugin {
 
 		// Store selected property before saving
 		const activeEl = document.activeElement as HTMLElement;
-		const propertyName = activeEl.parentNode?.parentNode?.children[0].children[1].getAttribute("aria-label");
+		const propertyElement = activeEl.parentNode?.parentNode?.querySelector('[aria-label]') as HTMLElement;
+		const propertyName = propertyElement?.getAttribute("aria-label");
+
+		const newFile = await this.app.vault.createBinary(savePath, arrayBuffer);
+
+		// Generate the link based on settings
+		let displayName: string;
+		const fileNameOnly = savePath.split('/').pop() || fileName;
+
+		if (this.settings.includeFileExtension) {
+			displayName = fileNameOnly;
+		} else {
+			displayName = fileNameOnly.replace(/\.[^/.]+$/, '');
+		}
+
+		const linkText = `[[${savePath}|${displayName}]]`;
+		await this.writeLinkIntoFrontmatter(activeFile, linkText, activeEl, propertyName, newFile);
+	}
+
+	async saveImageAndWriteLink(file: File, target: HTMLElement) {
+		const arrayBuffer = await file.arrayBuffer();
+		const fileExtension = file.type.split("/")[1] || "png";
+		const fileName = `Pasted image ${Date.now()}.${fileExtension}`;
+
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) {
+			new Notice(`No active file!`);
+			return;
+		}
+
+		const savePath = await this.app.fileManager.getAvailablePathForAttachment(fileName, activeFile.path);
+
+		// Store selected property before saving
+		const activeEl = document.activeElement as HTMLElement;
+		const propertyElement = activeEl.parentNode?.parentNode?.querySelector('[aria-label]') as HTMLElement;
+		const propertyName = propertyElement?.getAttribute("aria-label");
 
 		const newFile = await this.app.vault.createBinary(savePath, arrayBuffer);
 
@@ -129,7 +172,7 @@ export default class AutoFrontmatterConverterPlugin extends Plugin {
 				frontmatter[propertyName] = filePath;
 			});
 		} catch (error) {
-			await this.app.vault.delete(newFile);
+			await this.app.fileManager.trashFile(newFile);
 			new Notice(`Failed to update frontmatter!\n${error}`);
 			console.error("Error updating frontmatter:", error);
 		}
